@@ -1,0 +1,70 @@
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const rows = text.split('\\n').map(row => row.split(','));
+    const headers = rows[0];
+    const data = rows.slice(1).filter(row => row.length === headers.length);
+
+    // Summary
+    document.getElementById('summary').innerHTML = `
+      <h3>?? File Summary</h3>
+      <p>Rows: ${data.length}</p>
+      <p>Columns: ${headers.length}</p>
+    `;
+
+    // Table
+    let tableHTML = "<table><thead><tr>";
+    headers.forEach(h => tableHTML += `<th>${h}</th>`);
+    tableHTML += "</tr></thead><tbody>";
+    data.forEach(row => {
+      tableHTML += "<tr>";
+      row.forEach(cell => tableHTML += `<td>${cell}</td>`);
+      tableHTML += "</tr>";
+    });
+    tableHTML += "</tbody></table>";
+    document.getElementById('data-table').innerHTML = tableHTML;
+
+    // Chart
+    if (headers.length >= 2) {
+      const labels = data.map(row => row[0]);
+      const values = data.map(row => parseFloat(row[1]) || 0);
+      const ctx = document.getElementById('chart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: headers[1],
+            data: values,
+            backgroundColor: 'rgba(75, 192, 192, 0.7)'
+          }]
+        }
+      });
+
+      const avg = values.reduce((a, b) => a + b, 0) / values.length;
+      document.getElementById('insights').innerHTML = `
+        <h3>?? Smart AI Insight</h3>
+        <p>The average of <b>${headers[1]}</b> is <b>${avg.toFixed(2)}</b>.</p>
+      `;
+
+      // Download PDF
+      const downloadBtn = document.getElementById('downloadBtn');
+      downloadBtn.style.display = 'inline-block';
+      downloadBtn.onclick = () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.text("AI Data Summary", 10, 10);
+        doc.text(`Rows: ${data.length}`, 10, 20);
+        doc.text(`Columns: ${headers.length}`, 10, 30);
+        doc.text(`Average of ${headers[1]}: ${avg.toFixed(2)}`, 10, 40);
+        doc.save("data_summary.pdf");
+      };
+    }
+  };
+  reader.readAsText(file);
+});
+
